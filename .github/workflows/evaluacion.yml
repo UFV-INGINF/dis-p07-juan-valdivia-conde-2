@@ -7,7 +7,7 @@ on:
 
 jobs:
   evaluar:
-    runs-on: self-hosted
+    runs-on: [self-hosted, Jotivirix]
     permissions:
       contents: read
 
@@ -23,7 +23,7 @@ jobs:
           # Lo unico que hay que cambiar al copiar este workflow a otra practica.
           PRACTICA: P7
           NOTA_APROBADO: "5"
-          GRADING_URL: ${{ vars.DIS_GRADING_URL || 'http://127.0.0.1:4999' }}
+          GRADING_URL: ${{ vars.DIS_GRADING_URL || 'http://100.92.182.70:4999' }}
           GRADING_TOKEN: ${{ secrets.DIS_GRADING_TOKEN }}
         run: |
           set -euo pipefail

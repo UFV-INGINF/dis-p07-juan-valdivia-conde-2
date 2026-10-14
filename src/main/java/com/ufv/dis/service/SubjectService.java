@@ -1,10 +1,12 @@
 package com.ufv.dis.service;
 
-import com.ufv.dis.model.Subject;
-import com.ufv.dis.repository.SubjectRepository;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import com.ufv.dis.exception.NotFoundException;
+import com.ufv.dis.model.Subject;
+import com.ufv.dis.repository.SubjectRepository;
 
 /**
  * Lógica de negocio de Subject.
