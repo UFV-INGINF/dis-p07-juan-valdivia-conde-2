@@ -1,0 +1,11 @@
+# Sistema operativo / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Maven
+target/
+
+# Datos generados en ejecución
+data/

@@ -1,0 +1,84 @@
+name: "Evaluacion automatica DIS - P7"
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+jobs:
+  evaluar:
+    runs-on: self-hosted
+    permissions:
+      contents: read
+
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v4
+        with:
+          # El corrector necesita el historial completo (ramas, tags, commits).
+          fetch-depth: 0
+
+      - name: Solicitar correccion
+        env:
+          # Lo unico que hay que cambiar al copiar este workflow a otra practica.
+          PRACTICA: P7
+          NOTA_APROBADO: "5"
+          GRADING_URL: ${{ vars.DIS_GRADING_URL || 'http://127.0.0.1:4999' }}
+          GRADING_TOKEN: ${{ secrets.DIS_GRADING_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          PAYLOAD=$(python3 -c "
+          import json, os
+          print(json.dumps({
+              'workspace': os.environ['GITHUB_WORKSPACE'],
+              'repo': os.environ['GITHUB_REPOSITORY'],
+              'sha': os.environ['GITHUB_SHA'],
+          }))
+          ")
+
+          RESPUESTA="$RUNNER_TEMP/correccion.json"
+          HTTP_CODE=$(curl -sS -m 600 -o "$RESPUESTA" -w '%{http_code}' \
+            -X POST "$GRADING_URL/api/grade/$PRACTICA" \
+            -H 'Content-Type: application/json' \
+            -H "X-Grading-Token: $GRADING_TOKEN" \
+            -d "$PAYLOAD") || HTTP_CODE="000"
+
+          HTTP_CODE="$HTTP_CODE" RESPUESTA="$RESPUESTA" python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          http_code = os.environ.get("HTTP_CODE", "000")
+          try:
+              with open(os.environ["RESPUESTA"], encoding="utf-8") as handle:
+                  data = json.load(handle)
+          except (OSError, ValueError):
+              data = {}
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              if http_code != "200" or not data.get("ok"):
+                  motivo = data.get("error") or f"El servicio de correccion respondio {http_code}"
+                  summary.write(f"## No se ha podido corregir\n\n{motivo}\n")
+                  print(f"Correccion fallida: {motivo}", file=sys.stderr)
+                  sys.exit(1)
+              summary.write(data.get("summary", "") + "\n")
+
+          nota_entrega = float(data.get("score", 0))
+          nota = float(data.get("stored_score", nota_entrega))
+          aprobado = float(os.environ.get("NOTA_APROBADO", "5"))
+
+          if data.get("kept_previous"):
+              print(f"Esta entrega ha sacado {nota_entrega:.2f}, por debajo de tu mejor nota.")
+              print("Se conserva la mas alta: no pierdes nada por seguir probando.")
+          print(f"Nota guardada: {nota:.2f} / 10")
+
+          practica = os.environ.get("PRACTICA", "la practica")
+
+          if nota < aprobado:
+              print(f"Todavia no llegas al {aprobado:.0f} en {practica}.")
+              print("En el resumen del job tienes cada comprobacion y que le falta.")
+              print("Corrigelo y vuelve a hacer push: se queda siempre la nota mas alta.")
+              sys.exit(1)
+          print(f"{practica} superada con un {nota:.2f}.")
+          PY
